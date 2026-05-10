@@ -1,0 +1,148 @@
+# ─── options ──────────────────────────────────────────────────────────────────
+setopt INTERACTIVE_COMMENTS    # allow `# ...` comments in interactive shells
+setopt NO_BEEP                 # don't beep on completion / line-edit errors
+
+# ─── history ──────────────────────────────────────────────────────────────────
+HISTFILE="$XDG_STATE_HOME/zsh/history"
+HISTSIZE=100000        # entries kept in memory for the current session
+SAVEHIST=100000        # entries persisted to $HISTFILE
+
+setopt EXTENDED_HISTORY        # store timestamp + duration with each entry
+setopt INC_APPEND_HISTORY      # append to $HISTFILE as commands run, not at exit
+setopt HIST_IGNORE_DUPS        # don't record an entry that duplicates the previous
+setopt HIST_SAVE_NO_DUPS       # when writing $HISTFILE, drop older duplicates
+setopt HIST_IGNORE_SPACE       # entries starting with a space are not recorded
+setopt HIST_REDUCE_BLANKS      # collapse runs of whitespace before saving
+
+# ─── completion ───────────────────────────────────────────────────────────────
+# Cache locations. _zcompcache for zstyle's use-cache; _zcompdump for compinit.
+# Versioned filename so a zsh upgrade rebuilds rather than crashing on a stale dump.
+_zcompcache="$XDG_CACHE_HOME/zsh"
+_zcompdump="$_zcompcache/zcompdump-${ZSH_VERSION}"
+
+autoload -Uz compinit
+compinit -d "$_zcompdump"
+
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path "$_zcompcache"
+zstyle ':completion:*' menu select
+
+# Matcher layers, tried in order until one produces matches:
+#   1. exact
+#   2. case-fold AND hyphen/underscore-swap (foo_bar ⇔ Foo-Bar)
+#   3. ._- act as separators where a wildcard can be inserted (g-c → git-checkout)
+#   4. wildcard at any position (last-resort fuzzy)
+zstyle ':completion:*' matcher-list \
+    '' \
+    'm:{a-zA-Z-_}={A-Za-z_-}' \
+    'r:|[._-]=* r:|=*' \
+    'l:|=* r:|=*'
+
+# Lazy form (-e + reply=(...)): the assignment runs each time the style is
+# looked up, so it sees the current LS_COLORS even though that variable is
+# populated later in the aliases section.
+zstyle -e ':completion:*' list-colors 'reply=("${(s.:.)LS_COLORS}")'
+
+# Don't leak the helper variables into the user's interactive shell.
+unset _zcompcache _zcompdump
+
+# ─── prompt ───────────────────────────────────────────────────────────────────
+# vcs_info: zsh's built-in VCS prompt info. We only enable git, and we don't
+# enable check-for-changes — that's the slow path that runs git-status-equivalent
+# work on every prompt. With it off, vcs_info just reads .git/HEAD and resolves
+# the ref. Effectively free even on huge repos.
+autoload -Uz vcs_info
+zstyle ':vcs_info:*' enable git
+zstyle ':vcs_info:git:*' formats       '%F{yellow}⎇ %b%f'
+zstyle ':vcs_info:git:*' actionformats '%F{yellow}⎇ %b%f %F{red}(%a)%f'
+
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd vcs_info
+
+setopt PROMPT_SUBST
+
+# Left:  cyan path + green/red prompt symbol (red when last command exited non-zero).
+# Right: vcs_info output (branch glyph + name); empty outside a repo.
+PROMPT='%F{cyan}%~%f %(?.%F{green}.%F{red})❯%f '
+RPROMPT='${vcs_info_msg_0_}'
+
+# Transient RPROMPT: wipe the right-prompt when the command is submitted so it
+# never lands in scrollback. Otherwise old prompt lines stay anchored to the
+# terminal width they were drawn at and look misaligned after a resize.
+_rprompt_clear()   { RPROMPT=''; zle reset-prompt }
+_rprompt_restore() { RPROMPT='${vcs_info_msg_0_}' }
+zle -N zle-line-finish _rprompt_clear
+add-zsh-hook precmd _rprompt_restore
+
+# ─── keybindings ──────────────────────────────────────────────────────────────
+bindkey -e
+
+# Prefix history search with cursor at EOL after a match.
+# Chain-narrowing (multiple Up presses on the same prefix) doesn't work — the
+# second press uses the full recalled line as the prefix. Use fzf's Ctrl-R
+# for chained/fuzzy history search; it's better at it anyway.
+autoload -Uz history-search-end
+zle -N history-beginning-search-backward-end history-search-end
+zle -N history-beginning-search-forward-end  history-search-end
+
+bindkey "${terminfo[kcuu1]}" history-beginning-search-backward-end
+bindkey "${terminfo[kcud1]}" history-beginning-search-forward-end
+bindkey '^[[A' history-beginning-search-backward-end
+bindkey '^[[B' history-beginning-search-forward-end
+
+# ─── aliases ──────────────────────────────────────────────────────────────────
+# Populate LS_COLORS from dircolors output if it's not already set.
+# macOS ships BSD ls (no LS_COLORS support); use gdircolors from coreutils when present.
+# Linux: dircolors is part of GNU coreutils.
+if [[ -z "${LS_COLORS:-}" ]]; then
+    if (( $+commands[gdircolors] )); then
+        eval "$(gdircolors -b)"
+    elif (( $+commands[dircolors] )); then
+        eval "$(dircolors -b)"
+    fi
+fi
+
+# Prefer GNU ls (gls on macOS via coreutils) so we get --group-directories-first
+# and --hyperlink. Fall back to BSD ls with -G for color.
+if (( $+commands[gls] )); then
+    alias ls='gls --color=auto --hyperlink=auto --group-directories-first'
+elif ls --version 2>/dev/null | grep -q 'GNU coreutils'; then
+    alias ls='ls --color=auto --hyperlink=auto --group-directories-first'
+else
+    alias ls='ls -G'   # BSD ls fallback (color only)
+fi
+
+# nvim is the editor of record; redirect vi/vim if nvim is on PATH.
+if (( $+commands[nvim] )); then
+    alias vi='nvim'
+    alias vim='nvim'
+fi
+
+# ls family — `ll` and `la` compose on top of the `ls` alias above
+# (zsh expands aliases recursively).
+alias ll='ls -lh'
+alias la='ls -lAh'
+
+# grep with color. --color=auto is supported by both GNU grep (Linux) and
+# BSD grep (macOS), and disables itself when stdout isn't a terminal.
+alias grep='grep --color=auto'
+
+# Directory navigation shortcuts.
+alias ..='cd ..'
+alias ...='cd ../..'
+
+# ─── fzf ──────────────────────────────────────────────────────────────────────
+# fzf integration: keybindings + completion. Ctrl-G mirrors Alt-C
+# (fzf-cd-widget) for macOS terminals that don't pass Alt as Meta.
+if (( $+commands[fzf] )); then
+    source <(fzf --zsh)
+    bindkey '^G' fzf-cd-widget
+fi
+
+# ─── mise ─────────────────────────────────────────────────────────────────────
+# mise (formerly rtx) — polyglot runtime version manager. `activate zsh` emits
+# the hooks that swap PATH/env when entering directories with a .mise.toml or
+# .tool-versions file.
+if (( $+commands[mise] )); then
+    eval "$(mise activate zsh)"
+fi

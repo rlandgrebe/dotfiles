@@ -1,0 +1,3 @@
+claude:
+  plugins:
+    - superpowers@claude-plugins-official

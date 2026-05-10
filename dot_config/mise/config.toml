@@ -1,0 +1,9 @@
+[settings]
+idiomatic_version_file_enable_tools = ["node", "python"]
+
+[tools]
+go        = "latest"
+node      = "lts"
+python    = "3.14"
+uv        = "latest"
+terraform = "latest"

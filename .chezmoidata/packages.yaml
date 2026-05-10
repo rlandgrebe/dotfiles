@@ -1,0 +1,45 @@
+packages:
+  darwin:
+    formulae:
+      - awscli
+      - chezmoi
+      - composer
+      - coreutils
+      - fzf
+      - git
+      - jq
+      - lazygit
+      - libfido2
+      - mise
+      - neovim
+      - openssh
+      - php
+      - pie
+      - podman
+      - podman-compose
+      - symfony-cli
+    casks:
+      - 1password
+      - 1password-cli
+      - anydesk
+      - ausweisapp
+      - brave-browser
+      - bruno
+      - carbon-copy-cloner
+      - claude-code@latest
+      - codex
+      - font-jetbrains-mono
+      - ghostty
+      - keka
+      - little-snitch
+      - microsoft-office
+      - microsoft-teams
+      - passepartout
+      - pgadmin4
+      - phpstorm
+      - rectangle
+      - spotify
+      - visual-studio-code
+      - whatsapp
+      - windows-app
+      - yubico-authenticator

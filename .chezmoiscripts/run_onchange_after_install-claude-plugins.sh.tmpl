@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+command -v claude >/dev/null || { echo "claude not on PATH, skipping plugin install"; exit 0; }
+
+installed="$HOME/.claude/plugins/installed_plugins.json"
+
+{{ if hasKey .claude "plugins" }}{{ range .claude.plugins -}}
+if ! [ -f "$installed" ] || ! jq -e --arg p {{ . | quote }} '.plugins[$p]' "$installed" >/dev/null; then
+  claude plugin install {{ . | quote }}
+fi
+{{ end -}}{{ end -}}
