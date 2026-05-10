@@ -1,3 +1,5 @@
 claude:
+  marketplaces:
+    claude-plugins-official: anthropics/claude-plugins-official
   plugins:
     - superpowers@claude-plugins-official
