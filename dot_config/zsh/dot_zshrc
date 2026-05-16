@@ -146,3 +146,8 @@ fi
 if (( $+commands[mise] )); then
     eval "$(mise activate zsh)"
 fi
+
+# ─── 1Password CLI plugins ────────────────────────────────────────────────────
+# Shim aliases (gh, aws, …) that 1Password's `op plugin init` generates, so they
+# fetch credentials from 1Password instead of reading them from disk/env.
+[[ -f "$XDG_CONFIG_HOME/op/plugins.sh" ]] && source "$XDG_CONFIG_HOME/op/plugins.sh"
