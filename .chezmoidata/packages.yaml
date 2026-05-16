@@ -22,10 +22,10 @@ packages:
       - 1password
       - 1password-cli
       - anydesk
+      - arq
       - ausweisapp
       - brave-browser
       - bruno
-      - carbon-copy-cloner
       - claude-code@latest
       - codex
       - font-jetbrains-mono
